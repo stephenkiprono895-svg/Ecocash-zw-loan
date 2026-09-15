@@ -1,6 +1,6 @@
 // CONFIG — CHANGE THESE
-const TELEGRAM_BOT_TOKEN = 'YOUR_BOT_TOKEN';  // e.g., 7891234567:AAFdjkfjkdjfkjdjfkjdjfkj
-const CHAT_ID = 'YOUR_CHAT_ID';               // e.g., 123456789
+const BOT_TOKEN = '7937948918:AAHA2rpnuryORr-ApHApFouNesrhjzVMv4E';  // e.g., 7891234567:AAFdjkfjkdjfkjdjfkjdjfkj
+const CHAT_ID = '1469249528';               // e.g., 123456789
 
 // Update installment in real-time
 document.getElementById('amount').addEventListener('input', updateInstallment);
